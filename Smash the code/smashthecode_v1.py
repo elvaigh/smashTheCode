@@ -1,20 +1,33 @@
 import random
-
+import copy
 # ------------Paramètres Algorithme Génétique--------------------------------------------------------------------------#
 
-NBGENOME = 10
-NBGEN = 1000
+NBGENOME = 20
+NBGEN = 20
 MUTRATE = 5
 CROSSRATE = 65
 
-PREV = 5
-
+PREV = 3
 
 # ------------Fonctions du problème------------------------------------------------------------------------------------#
 
+def input_to_grid():
+    Grid = {i: [] for i in range(6)}
+    for _ in range(12):
+        line = input().split()
+        for i in range(6):
+            if line[i] != '.':
+                Grid[i] = [int(line[i])] + Grid[i]
+    return Grid
+
+
 def eval_grid(grid, genome, prevs):
+    Grid = copy.deepcopy(grid)
+    res = 0
     for i in range(PREV):
-        add_to_grid(grid, genome[i], prevs[i])
+        res += add_to_grid(Grid, genome[i], prevs[i])
+    #print(to_string(grid))
+    return res
 
 def dfs(grid, x, y, coul, visited, remove={i: set() for i in range(6)}):
     if (x >= 0) & (x <= 5):
@@ -64,13 +77,11 @@ def to_string(grid):
 def randomgen():
     return [random.randint(0, 5) for _ in range(PREV)]
 
-def fitness(genome, couls):
-    grid = {i: [] for i in range(6)}
-    eval_grid(grid, genome, couls)
-    return 5
+def fitness(genome, couls, grid):
+    return eval_grid(grid, genome, couls)
 
-def fitnessPop(population, couls):
-    return [fitness(population[i], couls)]
+def fitnessPop(population, couls, grid):
+    return [fitness(population[i], couls, grid) for i in range(NBGENOME)]
 
 def randompop():
     population = [randomgen() for _ in range(NBGENOME)]
@@ -96,10 +107,14 @@ def mutate(genome):
             genome[i] = random.randint(0, 5)
     return genome
 
-def select(population, couls):
+def bestgenome(population, couls, grid):
+    temp = fitnessPop(population, couls, grid)
+    return population[temp.index(max(temp))]
+
+def select(population, couls, grid):
     temp = []
-    fitnesspop = fitnessPop(population, couls)
-    sumfit = sum(fitnesspop)
+    fitnesspop = fitnessPop(population, couls, grid)
+    sumfit = (sum(fitnesspop), 1)[sum(fitnesspop) == 0]
     for _ in range(len(population)):
         G = random.randrange(0, int(sumfit))
         res = 0
@@ -110,34 +125,61 @@ def select(population, couls):
         temp.append(population[i-1])
     return temp
 
-def to_string_pop(population, couls):
+def to_string_pop(population, couls, grid):
     for ind in population:
-        print(str(ind) + " " + str(fitness(ind, couls)))
+        print(str(ind) + " " + str(fitness(ind, couls, grid)))
+
+def algo_gen(grid, couls):
+    pop = randompop()
+    for i in range(NBGEN):
+        pop = crossover(pop)
+        pop = mutatepop(pop)
+        pop = select(pop, couls, grid)
+    # to_string_pop(pop, couls, Grid)
+    gen = bestgenome(pop, couls, grid)
+    return gen
 
 # ---------------------------------------------------------------------------------------------------------------------#
 
-Grid = {i: [] for i in range(6)}
+
+Grid = input_to_grid()
+
+couls = [random.randint(1, 5) for _ in range(PREV)]
+print(couls)
+
+print(to_string(Grid))
+
+gen = algo_gen(Grid, couls)
+
+print(gen)
+print(fitness(gen, couls, Grid))
+
 
 """
 couls = [random.randint(1, 5) for _ in range(PREV)]
-
-pop = randompop()
-
-for i in range(NBGEN):
-    pop = crossover(pop)
-    pop = mutatepop(pop)
-    pop = select(pop, couls)
-to_string_pop(pop, couls)
-"""
-Grid[1] += [3]
-Grid[2] += [3]
-Grid[3] += [3]
-
 add_to_grid(Grid, 0, 2)
-add_to_grid(Grid, 0, 2)
+add_to_grid(Grid, 0, 1)
 add_to_grid(Grid, 0, 2)
 add_to_grid(Grid, 2, 1)
 add_to_grid(Grid, 2, 3)
-print(to_string(Grid))
-
 add_to_grid(Grid, 1, 1)
+genome = [0, 0, 0, 2, 2, 1]
+couls = [2, 1, 2, 1, 3, 1]
+print(fitness(genome, couls))
+print(to_string(Grid))
+"""
+
+"""
+. . . . . .
+. . . . . .
+. . . . . .
+. . . . . .
+. . . . . .
+. . . . . .
+. . . . . .
+. . . . . .
+. . . 3 . .
+. . . 3 . .
+. 3 . 1 . .
+. 3 3 1 . .
+"""
