@@ -4,8 +4,8 @@ import copy
 
 NBGENOME = 10
 NBGEN = 10
-MUTRATE = 5
-CROSSRATE = 65
+MUTRATE = 2
+CROSSRATE = 25
 
 PREV = 6
 
@@ -31,7 +31,8 @@ def eval_grid(grid, genome, couls):
         else:
             CP = 0
         res += (10 * B) * (CP + GB)
-    #print(to_string(grid))
+    if max([len(Grid[i]) for i in Grid]) >= 10:
+        return 0
     return res
 
 def dfs(grid, x, y, coul, visited):
@@ -56,7 +57,6 @@ def clean_grid(grid, x, y, coul, B=0, CP=0, GB=0):
     if lon >= 4:
         GB += lon - 4
         CP += 1
-        res = len(bloc)
         for x, y in bloc:
             if y < len(grid[x]):
                 B += 1
@@ -69,8 +69,10 @@ def clean_grid(grid, x, y, coul, B=0, CP=0, GB=0):
 
 def add_to_grid(grid, col, coul):
     grid[col] += [coul, coul]
-    B, CP, GB = clean_grid(grid, col, len(grid[col]) - 1, coul)
-    return [B, CP, GB]
+    if len(grid[col]) >= 12:
+        return 0, 0, 0
+    else:
+        return clean_grid(grid, col, len(grid[col]) - 1, coul)
 
 
 def to_string(grid):
@@ -92,8 +94,7 @@ def fitnessPop(population, couls, grid):
     return [fitness(population[i], couls, grid) for i in range(NBGENOME)]
 
 def randompop():
-    population = [randomgen() for _ in range(NBGENOME)]
-    return population
+    return [randomgen() for _ in range(NBGENOME)]
 
 def crossover(population):
     temp = []
@@ -122,12 +123,12 @@ def bestgenome(population, couls, grid):
 def select(population, couls, grid):
     temp = []
     fitnesspop = fitnessPop(population, couls, grid)
-    sumfit = (sum(fitnesspop), 1)[sum(fitnesspop) == 0]
+    sumfit = int((sum(fitnesspop), 1)[sum(fitnesspop) == 0])
     for _ in range(len(population)):
-        G = random.randrange(0, int(sumfit))
+        G = random.randrange(0, sumfit)
         res = 0
         i = 0
-        while (res < G):
+        while res < G:
             res += fitnesspop[i]
             i += 1
         temp.append(population[i-1])
@@ -143,9 +144,8 @@ def algo_gen(grid, couls):
         pop = crossover(pop)
         pop = mutatepop(pop)
         pop = select(pop, couls, grid)
-    # to_string_pop(pop, couls, Grid)
-    gen = bestgenome(pop, couls, grid)
-    return gen
+    to_string_pop(pop, couls, Grid)
+    return bestgenome(pop, couls, grid)
 
 def next_turn(genome):
     return genome[1:] + [random.randint(0,5)]
