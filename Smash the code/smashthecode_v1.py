@@ -7,25 +7,27 @@ NBGEN = 20
 MUTRATE = 5
 CROSSRATE = 65
 
-PREV = 3
+PREV = 8
+
+# res = [B, CP, ]
 
 # ------------Fonctions du problème------------------------------------------------------------------------------------#
 
 def input_to_grid():
     Grid = {i: [] for i in range(6)}
     for _ in range(12):
-        line = input().split()
+        line = input()
         for i in range(6):
             if line[i] != '.':
                 Grid[i] = [int(line[i])] + Grid[i]
     return Grid
 
 
-def eval_grid(grid, genome, prevs):
+def eval_grid(grid, genome, couls):
     Grid = copy.deepcopy(grid)
     res = 0
     for i in range(PREV):
-        res += add_to_grid(Grid, genome[i], prevs[i])
+        res += add_to_grid(Grid, genome[i], couls[i])
     #print(to_string(grid))
     return res
 
@@ -50,7 +52,7 @@ def clean_grid(grid, x, y, coul):
     visited = {i: set() for i in range(6)}
     bloc = sorted(dfs(grid, x, y, coul, visited), key=lambda x: x[1], reverse=True)
     if len(bloc) >= 4:
-        res = 1
+        res = len(bloc)
         for x, y in bloc:
             if y < len(grid[x]):
                 del grid[x][y]
@@ -58,6 +60,7 @@ def clean_grid(grid, x, y, coul):
             if y < len(grid[x]):
                 res += clean_grid(grid, x, y, grid[x][y])
     return res
+
 
 def add_to_grid(grid, col, coul):
     grid[col] += [coul, coul]
@@ -135,9 +138,12 @@ def algo_gen(grid, couls):
         pop = crossover(pop)
         pop = mutatepop(pop)
         pop = select(pop, couls, grid)
-    # to_string_pop(pop, couls, Grid)
+    to_string_pop(pop, couls, Grid)
     gen = bestgenome(pop, couls, grid)
     return gen
+
+def next_turn(genome):
+    return genome[1:] + [random.randint(0,5)]
 
 # ---------------------------------------------------------------------------------------------------------------------#
 
@@ -150,6 +156,7 @@ print(couls)
 print(to_string(Grid))
 
 gen = algo_gen(Grid, couls)
+next_gen = next_turn(gen)
 
 print(gen)
 print(fitness(gen, couls, Grid))
@@ -170,16 +177,20 @@ print(to_string(Grid))
 """
 
 """
-. . . . . .
-. . . . . .
-. . . . . .
-. . . . . .
-. . . . . .
-. . . . . .
-. . . . . .
-. . . . . .
-. . . 3 . .
-. . . 3 . .
-. 3 . 1 . .
-. 3 3 1 . .
+......
+......
+......
+......
+......
+......
+......
+......
+...3..
+...3..
+.3.1..
+.331..
 """
+
+
+print(gen)
+print(next_turn(gen))
