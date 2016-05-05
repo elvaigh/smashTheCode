@@ -2,14 +2,12 @@ import random
 import copy
 # ------------Paramètres Algorithme Génétique--------------------------------------------------------------------------#
 
-NBGENOME = 20
-NBGEN = 20
-MUTRATE = 5
-CROSSRATE = 65
+NBGENOME = 10
+NBGEN = 10
+MUTRATE = 2
+CROSSRATE = 25
 
-PREV = 8
-
-# res = [B, CP, ]
+PREV = 6
 
 # ------------Fonctions du problème------------------------------------------------------------------------------------#
 
@@ -27,17 +25,22 @@ def eval_grid(grid, genome, couls):
     Grid = copy.deepcopy(grid)
     res = 0
     for i in range(PREV):
-        res += add_to_grid(Grid, genome[i], couls[i])
-    #print(to_string(grid))
+        B, CP, GB = add_to_grid(Grid, genome[i], couls[i])
+        if CP != 1:
+            CP = 2**(CP+1)
+        else:
+            CP = 0
+        res += (10 * B) * (CP + GB)
+    if max([len(Grid[i]) for i in Grid]) >= 10:
+        return 0
     return res
 
-def dfs(grid, x, y, coul, visited, remove={i: set() for i in range(6)}):
+def dfs(grid, x, y, coul, visited):
     if (x >= 0) & (x <= 5):
         if (y >= 0) & (y < len(grid[x])):
             if y not in visited[x]:
                 visited[x].add(y)
                 if grid[x][y] == coul:
-                    remove[x].add(y)
                     su = [(x, y)]
                     su += dfs(grid, x + 1, y, coul, visited)
                     su += dfs(grid, x, y + 1, coul, visited)
@@ -47,25 +50,29 @@ def dfs(grid, x, y, coul, visited, remove={i: set() for i in range(6)}):
     return ()
 
 
-def clean_grid(grid, x, y, coul):
-    res = 0
+def clean_grid(grid, x, y, coul, B=0, CP=0, GB=0):
     visited = {i: set() for i in range(6)}
     bloc = sorted(dfs(grid, x, y, coul, visited), key=lambda x: x[1], reverse=True)
-    if len(bloc) >= 4:
-        res = len(bloc)
+    lon = len(bloc)
+    if lon >= 4:
+        GB += lon - 4
+        CP += 1
         for x, y in bloc:
             if y < len(grid[x]):
+                B += 1
                 del grid[x][y]
         for x, y in bloc:
             if y < len(grid[x]):
-                res += clean_grid(grid, x, y, grid[x][y])
-    return res
+                B, CP, GB = clean_grid(grid, x, y, grid[x][y], B, CP, GB)
+    return [B, CP, GB]
 
 
 def add_to_grid(grid, col, coul):
     grid[col] += [coul, coul]
-    nbblocks = clean_grid(grid, col, len(grid[col]) - 1, coul)
-    return nbblocks
+    if len(grid[col]) >= 12:
+        return 0, 0, 0
+    else:
+        return clean_grid(grid, col, len(grid[col]) - 1, coul)
 
 
 def to_string(grid):
@@ -87,8 +94,7 @@ def fitnessPop(population, couls, grid):
     return [fitness(population[i], couls, grid) for i in range(NBGENOME)]
 
 def randompop():
-    population = [randomgen() for _ in range(NBGENOME)]
-    return population
+    return [randomgen() for _ in range(NBGENOME)]
 
 def crossover(population):
     temp = []
@@ -117,12 +123,12 @@ def bestgenome(population, couls, grid):
 def select(population, couls, grid):
     temp = []
     fitnesspop = fitnessPop(population, couls, grid)
-    sumfit = (sum(fitnesspop), 1)[sum(fitnesspop) == 0]
+    sumfit = int((sum(fitnesspop), 1)[sum(fitnesspop) == 0])
     for _ in range(len(population)):
-        G = random.randrange(0, int(sumfit))
+        G = random.randrange(0, sumfit)
         res = 0
         i = 0
-        while (res < G):
+        while res < G:
             res += fitnesspop[i]
             i += 1
         temp.append(population[i-1])
@@ -139,8 +145,7 @@ def algo_gen(grid, couls):
         pop = mutatepop(pop)
         pop = select(pop, couls, grid)
     to_string_pop(pop, couls, Grid)
-    gen = bestgenome(pop, couls, grid)
-    return gen
+    return bestgenome(pop, couls, grid)
 
 def next_turn(genome):
     return genome[1:] + [random.randint(0,5)]
@@ -150,7 +155,9 @@ def next_turn(genome):
 
 Grid = input_to_grid()
 
+
 couls = [random.randint(1, 5) for _ in range(PREV)]
+couls = [4, 1, 4, 3, 3, 2]
 print(couls)
 
 print(to_string(Grid))
@@ -177,20 +184,31 @@ print(to_string(Grid))
 """
 
 """
-......
-......
-......
-......
-......
-......
-......
-......
-...3..
-...3..
-.3.1..
-.331..
+gen = [2]
+couls = [1]
+
+# print(fitness(gen, couls, Grid))
+
+print(add_to_grid(Grid, 2, 1))
+print(to_string(Grid))
 """
 
+"""
+......
+......
+......
+......
+......
+......
+......
+......
+.2.3..
+.2.3..
+23.1..
+2331..
+"""
 
+"""
 print(gen)
 print(next_turn(gen))
+"""
