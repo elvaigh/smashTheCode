@@ -11,13 +11,16 @@
 #include <chrono>
 #include <array>
 #include <fstream>
+
 int DEBUG = 0;
 int dirX[] = { -1,0,0,1 };
 int dirY[] = { 0,-1,1,0 };
 bool no_time = false;
 int Tour = 0;
 int nbreTME(0), nbreTMP(0);
-int depth = 3;
+int depth = 4;
+
+
 
 
 
@@ -26,7 +29,7 @@ using namespace std::chrono;
 using genome = vector<int>;
 vector<char> mymap(72, '@'); // La map
 vector<char> advmap(72, '@');
-
+map<string, int> previousPlay;
 
 deque<char> nextinput; // next bloc to add
 int next_column; // next value
@@ -38,8 +41,9 @@ high_resolution_clock::time_point start;
 
 inline bool getDiffTime()
 {
+	double x = (Tour == 0 ? 500.0 : 100.0);
 	auto fin = std::chrono::high_resolution_clock::now();
-	if (std::chrono::duration_cast<std::chrono::milliseconds>(fin - start).count() > 0.96 * 100)
+	if (std::chrono::duration_cast<std::chrono::milliseconds>(fin - start).count() > 0.92 * x)
 	{
 		no_time = true;
 		return true;
@@ -65,13 +69,24 @@ inline int permForAColumn(const int& j)
 {
 	int x = rand() % 4;
 	if (j == 0) {
-		int x = rand() % 3;
-		if (x == 2)
+		x = rand() % 3;
+		if (x == 2) {
 			x++;
+		}
 	}
 	else if (j == 5)
 		x = rand() % 3 + 1;
 	return x;
+}
+
+int sizeMap(const vector<char>& map)
+{
+	int n(0);
+	for_each(map.begin(), map.end(), [&n](const char& x) {
+		if (x != '@')
+			n++;
+	});
+	return n;
 }
 
 // ------------------------------------------ Modelisation --------------------------------------------------------
@@ -227,7 +242,7 @@ void transform(const vector<char>& deque, const int &i, int j, const int& perm, 
 	b = nextinput[(perm == 3 ? 2 * i : 2 * i + 1)];
 }
 
-void clearMap(vector<char> &deque, vector<int>& foo, int &score, int depth = 8)
+void clearMap(vector<char> &deque, vector<int>& foo, int &score, int & fitness, const int& i, int depth = 8)
 {
 	clear(deque, foo);
 	vector<int> foo1;
@@ -248,19 +263,19 @@ void clearMap(vector<char> &deque, vector<int>& foo, int &score, int depth = 8)
 			}
 		}
 	}
-	int B = foo1.size();
-	if (B)
+	int B = taille(foo1, deque);
+	if (B > 3)
 	{
 		int X = (B - 4);
 		if (B >= 11) X = 8;
-
-		score += (10 * B)*(depth + X + couleur.size());
-		clearMap(deque, foo1, score, depth + 1);
+		score += (10 * B)*((depth + X + couleur.size()) % 999) + (foo1.size() * 4);
+		//	fitness += (Tour + depth - i)*(10 * foo1.size())*(depth * 3 + X + couleur.size());
+		clearMap(deque, foo1, score, fitness, i, depth * 2);
 	}
 }
 
 
-void move(vector<char>& deque, const int& i, const int& pos1, const int& pos2, int& score, const int& a, const int& b)
+void move(vector<char>& deque, const int& i, const int& pos1, const int& pos2, int& score, const int& a, const int& b, int& fitness)
 {
 
 	vector<int> foo;
@@ -277,7 +292,7 @@ void move(vector<char>& deque, const int& i, const int& pos1, const int& pos2, i
 			fooX.insert(foo.begin(), foo.end());
 			B += foo.size();
 		}
-		CP = 2;
+		CP = 0;
 	}
 	else
 	{
@@ -286,7 +301,7 @@ void move(vector<char>& deque, const int& i, const int& pos1, const int& pos2, i
 		if (taille(foo, deque) > 3)
 		{
 			fooX.insert(foo.begin(), foo.end());
-			B += foo.size();
+			B += taille(foo, deque); CP++;
 		}
 
 		foo.clear();
@@ -295,19 +310,23 @@ void move(vector<char>& deque, const int& i, const int& pos1, const int& pos2, i
 		if (taille(foo, deque) > 3)
 		{
 			std::copy(foo.begin(), foo.end(), std::inserter(fooX, fooX.end()));
-			B += foo.size();
+			B += taille(foo, deque); CP++;
 		}
-		CP = 0;
 	}
 
 	vector<int> res(fooX.begin(), fooX.end());
 
-	if (taille(res, deque) > 3)
+	if (taille(res, deque) == 0)
+	{
+		score = 0;
+	}
+	else if (taille(res, deque) > 3)
 	{
 		int X = (B - 4);
 		if (B >= 11) X = 8;
-		score = (10 * B)*(CP + X);
-		clearMap(deque, res, score);
+		score = (10 * B)*(CP + X) + (4 * res.size());
+		// fitness = (Tour + depth - i)*(10 * res.size())*(CP + X);
+		clearMap(deque, res, score, fitness, i);
 	}
 
 }
@@ -351,7 +370,6 @@ void readInput(const int& k)
 			mymap[i * 6 + j] = row[j] + 17;
 			if (row.at(j) == '0')
 			{
-
 				mymap[i * 6 + j] = 'A';
 			}
 			if (row.at(j) == '.')
@@ -362,7 +380,6 @@ void readInput(const int& k)
 	{
 		string row; // One line of the map ('.' = empty, '0' = skull block, '1' to '5' = colored block)
 		cin >> row;
-		cin.ignore();
 		for (int j(0); j < row.size(); j++)
 		{
 			advmap[i * 6 + j] = row[j] + 17;
@@ -384,15 +401,12 @@ void readInput(const int& k)
 // ------------------------------------------------ Hill Climbing -------------------------------------------------------------
 
 
-void randomize(genome &A, genome& B)
+void randomize(genome &A)
 {
-	for (int i(0); i < 8; i++)
+	for (int i(0); i < depth; i++)
 	{
 		A[2 * i] = rand() % 6;
 		A[2 * i + 1] = permForAColumn(A[2 * i]);
-
-		B[2 * i] = rand() % 6;
-		B[2 * i + 1] = permForAColumn(B[2 * i]);
 	}
 }
 
@@ -408,131 +422,186 @@ void swift(genome& gen)
 }
 
 
-int sizeMap(const vector<char>& map)
-{
-	int n(0);
-	for_each(map.begin(), map.end(), [&n](const char& x) {
-		if (x != '@')
-			n++;
-	});
-	return n;
-}
+
 
 // -1 : my defeat
 // -2 : bot defeat
-int simulate(genome& genomeP, genome& genomeE, int& finalScoreP, int& finalScoreE, int& nbTeteMortP, int& nbTeteMortE, int depth = 8)
+int simulate(const genome& genomeP/*, const genome& genomeE*/, int& finalScoreP/*int& finalScoreE*/, int &fitnessP,/* int &fitnessE,
+																												   */ int& nbTeteMortP,/* int& nbTeteMortE*/ int depthG = depth)
 {
-	for (int i(0); i < depth; i++)
+
+	for (int i(0); i < depthG; i++)
 	{
-		int scoreE(0), scoreP(0);
+		int scoreE(0), scoreP(0), fitE(0), fitP(0);
 		int pos1(-1), pos2(-1);
 		char a, b;
 
 		// My turn
 		transform(mymap, i, genomeP.at(2 * i), genomeP.at(2 * i + 1), pos1, pos2, a, b);
-		if (pos2 == -1 || pos1 == -1)
-			return -1;
-		move(mymap, i, pos1, pos2, scoreP, a, b);
+		if (pos2 == -1 || pos1 == -1) {
+			return -3;
+		}
+		// if (i == depthG / 2 && !getDiffTime())
+		// 	return -3;
+		move(mymap, i, pos1, pos2, scoreP, a, b, fitnessP);
 
-		pos1 = -1; pos2 = -1;
-
+		//	pos1 = -1; pos2 = -1;
 		// Adv turn
-		transform(advmap, i, genomeE.at(2 * i), genomeE.at(2 * i + 1), pos1, pos2, a, b);
-		if (pos2 == -1 || pos1 == -1)
-			return -2;
-		move(advmap, i, pos1, pos2, scoreE, a, b);
+		//	transform(advmap, i, genomeE.at(2 * i), genomeE.at(2 * i + 1), pos1, pos2, a, b);
+		//
+		//	if (pos2 == -1 || pos1 == -1) {
+		//		return -4;
+		//	}
 
-		scoreE /= 70; scoreP /= 70;
+		//	move(advmap, i, pos1, pos2, scoreE, a, b, fitnessE);
 
-		if (scoreP + nbTeteMortP >= 6) {
-			int res = raining(advmap, (scoreP + nbTeteMortP) / 6);
-			if (res == 0)
-				return -2;
-			nbTeteMortP = (scoreP + nbTeteMortP) - 6 * ((scoreP + nbTeteMortP) / 6);
-		}
-		if (scoreE + nbTeteMortE >= 6)
-		{
-			int res = raining(mymap, (scoreE + nbTeteMortE) / 6);
-			if (res == 0)
-				return -1;
-			nbTeteMortE = (scoreE + nbTeteMortE) - 6 * ((scoreE + nbTeteMortE) / 6);
-		}
-		finalScoreE += scoreE;
-		finalScoreP += scoreP;
+		//	finalScoreE += scoreE; 
+		finalScoreP += (depth + 2 - i)*scoreP;
+		// fitnessE += (depth - i)*fitE;
+		fitnessP += (depth - i)*fitP;
+
+		// scoreE /= 70; 
+		// scoreP /= 70;
+
+		// if (scoreP + nbTeteMortP >= 6) {
+		// 
+		// 	// int res = raining(advmap, (scoreP + nbTeteMortP) / 6);
+		// 	// if (res == 0)
+		// 	// 	return -2;
+		// }
+
+		// nbTeteMortP = (scoreP + nbTeteMortP) - 6 * ((scoreP + nbTeteMortP) / 6);
+		// if (scoreE + nbTeteMortE >= 6)
+		// {
+		// 	int res = raining(mymap, (scoreE + nbTeteMortE) / 6);
+		// 	if (res == 0)
+		// 		return -1;
+		// }
+		// nbTeteMortE = (scoreE + nbTeteMortE) - 6 * ((scoreE + nbTeteMortE) / 6);
+	}
+	if (depth == 1)
+	{
+		cerr << "Player score : " << finalScoreP << endl;
+		//	cerr << "Ennemy score : " << finalScoreE << endl;
 	}
 	return 1; // Everything is all right !!
 }
 
 
-void hillClimbing(genome& genomeP, genome& genomeE, genome& bestP, genome& bestE)
+int maxScore = 1;
+void mutate(genome& a, int score)
 {
 
-	swift(genomeP); swift(genomeE);
+	for (int i(0); i < depth; i++)
+	{
+		a[2 * i] = rand() % 6;
+		a[2 * i + 1] = permForAColumn(a[2 * i]);
+	}
+}
 
+void hillClimbing(genome genomeP, genome genomeE, genome& bestP, genome& bestE, map<string, int> saveGenome = map <string, int>())
+{
+	swift(genomeP); swift(genomeE);
 	int finalScoreP(0), finalScoreE(0), bestScoreP(0), bestScoreE(0);
 	int TP(nbreTMP), TE(nbreTME);
+	int fitnessP(0), fitnessE(0), fitnessPBuff(0), fitnessEBuff(0);
 
-	// To give a score to the news genomes
 	vector<char> mymapbuf = mymap;
 	vector<char> advmapbuf = advmap;
-	simulate(genomeP, genomeE, bestScoreE, bestScoreP, TP, TE);
+
+	int code = simulate(genomeP, /*genomeE*/ bestScoreP/*, bestScoreE*/, fitnessP, /*fitnessE*/ TP/*, TE*/);
+
+
+	if (code != 1)
+		randomize(genomeP);
+	//if (code == -2)
+	//	randomize(genomeE);
+
 	mymap = mymapbuf;
-	advmap = advmapbuf;
-
-
+	//advmap = advmapbuf;
+	genome X;
 	int T(0); // number of round
 
 	while (!getDiffTime())
 	{
-
+		finalScoreP = 0;
 		T++;
-		randomize(genomeP, genomeE);
+		// mutate(genomeE, bestScoreE); 
+		mutate(genomeP, bestScoreP);
+		string a, b;
 
+		for (int i(0); i < 2 * depth; i++)
+			a += to_string(genomeP.at(i));
 
-		int bufnbreTMP(nbreTMP);
-		int bufnbreTME(nbreTME);
+		if (!(saveGenome.count(a) /*|| previousPlay.count(b)*/))
+		{
+			saveGenome[a] = 1;
+			// previousPlay[b] = 1;
+			int bufnbreTMP(nbreTMP); // useless
+			int bufnbreTME(nbreTME); // useless
 
-		int code = simulate(genomeP, genomeE, finalScoreP, finalScoreE, bufnbreTMP, bufnbreTME);
+			mymapbuf = mymap;
+			advmapbuf = advmap;
 
-		if (code != -1) {
-			if (finalScoreP > bestScoreP)
+			int code = simulate(genomeP/*, genomeE*/, finalScoreP/*, finalScoreE*/, fitnessPBuff/*, fitnessEBuff*/, bufnbreTMP/*, bufnbreTME*/);
+
+			mymap = mymapbuf;
+			advmap = advmapbuf;
+
+			if (code == 1 && finalScoreP >= bestScoreP)
 			{
 				bestP = genomeP;
-				finalScoreP = bestScoreP;
+				// fitnessP = fitnessPBuff;
+				bestScoreP = finalScoreP;
 			}
-		}
 
-		if (code != -2 && finalScoreE > bestScoreE)
+			//			if (code != -2 && code != -3 && fitnessEBuff >= fitnessE)
+			//			{
+			//				fitnessE = fitnessEBuff;
+			//				bestE = genomeE;
+			//		}
+		}
+		}
+		cerr << "Best genome :" << endl;
+		for (int i(0); i < depth; i++)
 		{
-			finalScoreE = bestScoreE;
-			bestE = genomeE;
+			cerr << "" << bestP[2 * i] << " " << bestP[2 * i + 1] << " | ";
+		}
+		// cerr << "Fitness : " << fitnessP << " " << endl;
+		cerr << "Score : " << bestScoreP << endl;
+		cerr << "Number of tour tries:" << T << endl;
+	}
+
+
+	void play()
+	{
+		genome A(depth * 2), B(depth * 2), C(depth * 2), D(depth * 2);
+		int a(0), b(0); // useless
+		randomize(A); randomize(B);
+		while (1)
+		{
+			// previousPlay.clear();
+			readInput(Tour);
+			hillClimbing(A, B, C, D);
+			Tour++;
+			cerr << "Time : " << std::chrono::duration_cast<std::chrono::milliseconds>(high_resolution_clock::now() - start).count() << endl;
+			// cerr << "Dead head upon players : " << nbreTMP << " " << nbreTME << endl;
+
+			cout << C[0] << " " << C[1] << endl; // "x": the column in which to drop your blocks
+
+												 //	simulate(C/*, D*/, a/*, b*/, nbreTMP/*, nbreTME*/, a/*, b*/, 1); // a is for buffer values
+			A = C; B = D;
+			// output();
 		}
 	}
-	cerr << "Number of tour tried:" << T << endl;
-}
 
 
-int main()
-{
-	srand(time(NULL));
-	int u = 40;
-	//std::freopen("test", "r", stdin);
-	// game loop
-	genome A(16), B(16), C(16), D(16);
-	int a(0), b(0); // useless
-
-	randomize(A, B);
-
-	while (1)
+	int main()
 	{
-		readInput(Tour);
-		hillClimbing(A, B, C, D);
-		output();
-		Tour++;
-		cerr << "Time : " << std::chrono::duration_cast<std::chrono::milliseconds>(high_resolution_clock::now() - start).count() << endl;
-		cout << A[0] << " " << A[1] << endl; // "x": the column in which to drop your blocks
+		srand(time(NULL));
+		int u = 40;
+		// std::freopen("test", "r", stdin);
+		play();
 
-		simulate(C, D, a, b, nbreTMP, nbreTME, 1);
+		return 1;
 	}
-	return 1;
-}
