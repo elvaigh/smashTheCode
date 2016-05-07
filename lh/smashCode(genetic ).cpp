@@ -44,7 +44,7 @@ inline bool getDiffTime()
 {
 	double x = (Tour == 0 ? 500.0 : 100.0);
 	auto fin = std::chrono::high_resolution_clock::now();
-	if (std::chrono::duration_cast<std::chrono::milliseconds>(fin - start).count() > 0.92 * x)
+	if (std::chrono::duration_cast<std::chrono::milliseconds>(fin - start).count() > 0.85 * x)
 	{
 		no_time = true;
 		return true;
@@ -579,7 +579,6 @@ void hillClimbing(genome genomeP, genome genomeE, genome& bestP, genome& bestE, 
 int fitness(const genome& gen)
 {
 	int score(0), a(0), b(0);
-
 	int code = simulate(gen, score, a, b);
 	if (code != 1)
 		score = 1;
@@ -589,7 +588,7 @@ int fitness(const genome& gen)
 // roulette selection over the population
 int selection(vector<genome>& pop)
 {
-	vector<genome> pop2 = pop; // copy
+	vector<genome> pop2; // copy
 	vector<int> score; // score vector
 	int sum(0), bestgenindice, bestscore(-1);
 	for (int i(0); i < pop.size(); i++)
@@ -602,15 +601,16 @@ int selection(vector<genome>& pop)
 		}
 		sum += sc;
 	}
-
+	//cerr << "Selection 1 end :" << std::chrono::duration_cast<std::chrono::milliseconds>(high_resolution_clock::now() - start).count() << endl;
 	pop2.push_back(pop[bestgenindice]); // first element = best
 
 	for (int i(0); i < pop.size() - 1; i++)
 	{
 		int g = rand() % sum;
 		int x(0), j(-1);
-		while (x <= g)
+		while (x <= g) {
 			x += score[++j];
+		}
 		pop2.push_back(pop[j]);
 	}
 	pop = pop2; // copy back
@@ -626,7 +626,11 @@ void crossover(vector<genome>& pop)
 			swap_ranges(pop[2 * i].begin(), pop[2 * i].begin() + 2 * x, pop[2 * i + 1].begin());
 		}
 	}
+	// cerr << "Crossover end :" << std::chrono::duration_cast<std::chrono::milliseconds>(high_resolution_clock::now() - start).count() << endl;
 }
+
+
+
 void mutate2gen(genome& gen)
 {
 	for (int i(0); i < depth; i++)
@@ -645,6 +649,8 @@ void mutatepop(vector<genome>& pop)
 	{
 		mutate2gen(gen);
 	});
+	// cerr << "Mutation end :" << std::chrono::duration_cast<std::chrono::milliseconds>(high_resolution_clock::now() - start).count() << endl;
+
 }
 
 void initiate(vector<genome>& pop)
@@ -701,7 +707,6 @@ void playAG()
 
 	while (1)
 	{
-
 		readInput(Tour);
 		algoGen(pop, bestgen);
 		Tour++;
@@ -735,6 +740,7 @@ void play()
 
 int main()
 {
+
 	srand(time(NULL));
 	// std::freopen("test", "r", stdin);
 	// play();
