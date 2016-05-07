@@ -18,8 +18,9 @@ int dirY[] = { 0,-1,1,0 };
 bool no_time = false;
 int Tour = 0;
 int nbreTME(0), nbreTMP(0);
-int depth = 4;
+int depth = 5;
 
+int tailleMap;
 
 
 
@@ -228,7 +229,7 @@ void transform(const vector<char>& deque, const int &i, int j, const int& perm, 
 		k = 0;
 		while (k < 12 && deque[j + k * 6] != '@')
 			k++;
-		if (k == 11)
+		if (k > 11)
 			return;
 		pos2 = j + k * 6;
 	}
@@ -267,8 +268,9 @@ void clearMap(vector<char> &deque, vector<int>& foo, int &score, int & fitness, 
 	if (B > 3)
 	{
 		int X = (B - 4);
+		int V = foo1.size();
 		if (B >= 11) X = 8;
-		score += (10 * B)*((depth + X + couleur.size()) % 999) + (foo1.size() * 4);
+		score += (10 * depth)*((B + X + couleur.size())) + (V * 4) + (std::max(0, ((tailleMap / 7) - 3)*(V - B)));
 		//	fitness += (Tour + depth - i)*(10 * foo1.size())*(depth * 3 + X + couleur.size());
 		clearMap(deque, foo1, score, fitness, i, depth * 2);
 	}
@@ -323,8 +325,9 @@ void move(vector<char>& deque, const int& i, const int& pos1, const int& pos2, i
 	else if (taille(res, deque) > 3)
 	{
 		int X = (B - 4);
+		int V = res.size();
 		if (B >= 11) X = 8;
-		score = (10 * B)*(CP + X) + (4 * res.size());
+		score = (10 * B)*(CP + X) + (4 * V) + (std::max(0, ((tailleMap / 7) - 3)*(V - B)));
 		// fitness = (Tour + depth - i)*(10 * res.size())*(CP + X);
 		clearMap(deque, res, score, fitness, i);
 	}
@@ -393,6 +396,7 @@ void readInput(const int& k)
 		}
 	}
 	start = high_resolution_clock::now();
+	tailleMap = sizeMap(mymap);
 
 	//output();
 }
@@ -507,16 +511,33 @@ void hillClimbing(genome genomeP, genome genomeE, genome& bestP, genome& bestE, 
 	int fitnessP(0), fitnessE(0), fitnessPBuff(0), fitnessEBuff(0);
 
 	vector<char> mymapbuf = mymap;
-	vector<char> advmapbuf = advmap;
+	// vector<char> advmapbuf = advmap;
 
 	int code = simulate(genomeP, /*genomeE*/ bestScoreP/*, bestScoreE*/, fitnessP, /*fitnessE*/ TP/*, TE*/);
 
-
-	if (code != 1)
+	do
+	{
+		mymap = mymapbuf;
+		bestScoreP = 0;
 		randomize(genomeP);
-	//if (code == -2)
-	//	randomize(genomeE);
-
+		code = simulate(genomeP, /*genomeE*/ bestScoreP/*, bestScoreE*/, fitnessP, /*fitnessE*/ TP/*, TE*/);
+	} while (code != 1 && !getDiffTime());
+	if (no_time)
+	{
+		mymap = mymapbuf;
+		
+		output();
+		for (int i(0); i < 6; i++)
+			for (int j(0); j < 4; j++)
+			{
+				int pos11(-1), pos22(-1); char aa, bb;
+				transform(mymap, 0, i, j, pos11, pos22, aa, bb);
+				if (pos11 != -1 && pos22 != -1) {
+					bestP[0] = i; bestP[1] = j;
+					return;
+				}
+			}
+	}
 	mymap = mymapbuf;
 	//advmap = advmapbuf;
 	genome X;
@@ -540,13 +561,13 @@ void hillClimbing(genome genomeP, genome genomeE, genome& bestP, genome& bestE, 
 			int bufnbreTMP(nbreTMP); // useless
 			int bufnbreTME(nbreTME); // useless
 
-			mymapbuf = mymap;
-			advmapbuf = advmap;
+			// mymapbuf = mymap;
+			// advmapbuf = advmap;
 
 			int code = simulate(genomeP/*, genomeE*/, finalScoreP/*, finalScoreE*/, fitnessPBuff/*, fitnessEBuff*/, bufnbreTMP/*, bufnbreTME*/);
 
 			mymap = mymapbuf;
-			advmap = advmapbuf;
+			// advmap = advmapbuf;
 
 			if (code == 1 && finalScoreP >= bestScoreP)
 			{
@@ -561,47 +582,47 @@ void hillClimbing(genome genomeP, genome genomeE, genome& bestP, genome& bestE, 
 			//				bestE = genomeE;
 			//		}
 		}
-		}
-		cerr << "Best genome :" << endl;
-		for (int i(0); i < depth; i++)
-		{
-			cerr << "" << bestP[2 * i] << " " << bestP[2 * i + 1] << " | ";
-		}
-		// cerr << "Fitness : " << fitnessP << " " << endl;
-		cerr << "Score : " << bestScoreP << endl;
-		cerr << "Number of tour tries:" << T << endl;
 	}
-
-
-	void play()
+	cerr << "Best genome :" << endl;
+	for (int i(0); i < depth; i++)
 	{
-		genome A(depth * 2), B(depth * 2), C(depth * 2), D(depth * 2);
-		int a(0), b(0); // useless
-		randomize(A); randomize(B);
-		while (1)
-		{
-			// previousPlay.clear();
-			readInput(Tour);
-			hillClimbing(A, B, C, D);
-			Tour++;
-			cerr << "Time : " << std::chrono::duration_cast<std::chrono::milliseconds>(high_resolution_clock::now() - start).count() << endl;
-			// cerr << "Dead head upon players : " << nbreTMP << " " << nbreTME << endl;
-
-			cout << C[0] << " " << C[1] << endl; // "x": the column in which to drop your blocks
-
-												 //	simulate(C/*, D*/, a/*, b*/, nbreTMP/*, nbreTME*/, a/*, b*/, 1); // a is for buffer values
-			A = C; B = D;
-			// output();
-		}
+		cerr << "" << bestP[2 * i] << " " << bestP[2 * i + 1] << " | ";
 	}
+	// cerr << "Fitness : " << fitnessP << " " << endl;
+	cerr << "Score : " << bestScoreP << endl;
+	cerr << "Number of tour tries:" << T << endl;
+}
 
 
-	int main()
+void play()
+{
+	genome A(depth * 2), B(depth * 2), C(depth * 2), D(depth * 2);
+	int a(0), b(0); // useless
+	randomize(A); randomize(B);
+	while (1)
 	{
-		srand(time(NULL));
-		int u = 40;
-		// std::freopen("test", "r", stdin);
-		play();
+		// previousPlay.clear();
+		readInput(Tour);
+		hillClimbing(A, B, C, D);
+		Tour++;
+		cerr << "Time : " << std::chrono::duration_cast<std::chrono::milliseconds>(high_resolution_clock::now() - start).count() << endl;
+		// cerr << "Dead head upon players : " << nbreTMP << " " << nbreTME << endl;
 
-		return 1;
+		cout << C[0] << " " << C[1] << endl; // "x": the column in which to drop your blocks
+
+											 //	simulate(C/*, D*/, a/*, b*/, nbreTMP/*, nbreTME*/, a/*, b*/, 1); // a is for buffer values
+		A = C; B = D;
+		// output();
 	}
+}
+
+
+int main()
+{
+	srand(time(NULL));
+	int u = 40;
+	// std::freopen("test", "r", stdin);
+	play();
+
+	return 1;
+}
