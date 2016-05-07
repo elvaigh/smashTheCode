@@ -1,13 +1,14 @@
 import random
 import copy
+
 # ------------Paramètres Algorithme Génétique--------------------------------------------------------------------------#
 
 NBGENOME = 10
 NBGEN = 10
-MUTRATE = 2
+MUTRATE = 5
 CROSSRATE = 25
 
-PREV = 6
+PREV = 5
 
 # ------------Fonctions du problème------------------------------------------------------------------------------------#
 
@@ -26,14 +27,14 @@ def eval_grid(grid, genome, couls):
     res = 0
     for i in range(PREV):
         B, CP, GB = add_to_grid(Grid, genome[i], couls[i])
+        if max([len(Grid[i]) for i in Grid]) >= 12:
+            return 1
         if CP != 1:
             CP = 2**(CP+1)
         else:
             CP = 0
         res += (10 * B) * (CP + GB)
-    if max([len(Grid[i]) for i in Grid]) >= 10:
-        return 0
-    return res
+    return 10 + res
 
 def dfs(grid, x, y, coul, visited):
     if (x >= 0) & (x <= 5):
@@ -69,10 +70,7 @@ def clean_grid(grid, x, y, coul, B=0, CP=0, GB=0):
 
 def add_to_grid(grid, col, coul):
     grid[col] += [coul, coul]
-    if len(grid[col]) >= 12:
-        return 0, 0, 0
-    else:
-        return clean_grid(grid, col, len(grid[col]) - 1, coul)
+    return clean_grid(grid, col, len(grid[col]) - 1, coul)
 
 
 def to_string(grid):
@@ -157,17 +155,21 @@ Grid = input_to_grid()
 
 
 couls = [random.randint(1, 5) for _ in range(PREV)]
-couls = [4, 1, 4, 3, 3, 2]
+couls = [4, 1, 4, 3, 3]
 print(couls)
 
 print(to_string(Grid))
 
+"""
 gen = algo_gen(Grid, couls)
 next_gen = next_turn(gen)
 
 print(gen)
 print(fitness(gen, couls, Grid))
+"""
 
+couls = [4,2,5,3,2,2]
+gen = algo_gen(Grid, couls)
 
 """
 couls = [random.randint(1, 5) for _ in range(PREV)]
@@ -206,6 +208,21 @@ print(to_string(Grid))
 .2.3..
 23.1..
 2331..
+"""
+
+"""
+......
+......
+......
+......
+425322
+421311
+232122
+233121
+422321
+422332
+232141
+233122
 """
 
 """
