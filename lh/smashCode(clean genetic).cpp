@@ -18,7 +18,7 @@ int dirY[] = { 0,-1,1,0 };
 bool no_time = false;
 int Tour = 0;
 int nbreTME(0), nbreTMP(0);
-int depth = 5;
+int depth = 6;
 
 int tailleMap;
 
@@ -485,7 +485,6 @@ int simulate(const genome& genomeP/*, const genome& genomeE*/, int& finalScoreP/
 int maxScore = 1;
 void mutate(genome& a, int score)
 {
-
 	for (int i(0); i < depth; i++)
 	{
 		a[2 * i] = rand() % 6;
@@ -573,7 +572,10 @@ void hillClimbing(genome genomeP, genome genomeE, genome& bestP, genome& bestE, 
 //------------------------------------------------- ALgo genetic ------------------------------------------------------
 // #define RAND_MAX 10
 
-#define TAILLE_POP 36
+#define TAILLE_POP 16 // size of the pop
+#define ELLITISM 2 // number of element to save
+#define MUT_RATE 0.20 // mut rate
+#define CROSS_RATE 0.45 // crossover rate
 
 // fitness for a genome, call a correct function :), return 1 only if the gen is "possible", a and b are useless
 int fitness(const genome& gen)
@@ -589,27 +591,34 @@ int fitness(const genome& gen)
 int selection(vector<genome>& pop)
 {
 	vector<genome> pop2; // copy
-	vector<int> score; // score vector
+
+	vector<pair<int, int> > score; // score vector
+
 	int sum(0), bestgenindice, bestscore(-1);
+
 	for (int i(0); i < pop.size(); i++)
 	{
 		int sc = fitness(pop[i]); // get the score
-		score.push_back(sc);
-		if (sc > bestscore) // keep the best score
-		{
-			bestscore = sc; bestgenindice = i;
-		}
+		score.push_back(make_pair(sc, i));
 		sum += sc;
 	}
-	//cerr << "Selection 1 end :" << std::chrono::duration_cast<std::chrono::milliseconds>(high_resolution_clock::now() - start).count() << endl;
-	pop2.push_back(pop[bestgenindice]); // first element = best
 
-	for (int i(0); i < pop.size() - 1; i++)
+	partial_sort(score.begin(), score.begin() + ELLITISM, score.end(), [](const pair<int, int>& a, const pair<int, int>& b) {
+		return a.first > b.first;
+	});
+
+	bestscore = score[0].first;
+
+	for (int i(0); i < ELLITISM; i++)
+		pop2.push_back(pop[score[i].second]);
+	random_shuffle(score.begin(), score.end());
+
+	for (int i(0); i < pop.size() - ELLITISM; i++)
 	{
 		int g = rand() % sum;
 		int x(0), j(-1);
 		while (x <= g) {
-			x += score[++j];
+			x += score[++j].first;
 		}
 		pop2.push_back(pop[j]);
 	}
@@ -621,7 +630,7 @@ void crossover(vector<genome>& pop)
 {
 	for (int i(0); i < pop.size() / 2; i++) // if impair, last element unchanged
 	{
-		if ((static_cast<double>(rand()) / RAND_MAX) < 0.12) {
+		if ((static_cast<double>(rand()) / RAND_MAX) < CROSS_RATE) {
 			int x = rand() % depth;
 			swap_ranges(pop[2 * i].begin(), pop[2 * i].begin() + 2 * x, pop[2 * i + 1].begin());
 		}
@@ -635,7 +644,7 @@ void mutate2gen(genome& gen)
 {
 	for (int i(0); i < depth; i++)
 	{
-		if (static_cast<double>(rand()) / RAND_MAX <= 0.18)
+		if (static_cast<double>(rand()) / RAND_MAX <= MUT_RATE)
 		{
 			gen[2 * i] = rand() % 6;
 			gen[2 * i + 1] = permForAColumn(gen[2 * i]);
